@@ -1,7 +1,7 @@
 import calendar
 import csv
 import re
-from pyzipper import AESZipFile
+#  from pyzipper import AESZipFile
 from datetime import date
 from io import BytesIO, StringIO
 
@@ -11,12 +11,14 @@ from beancount.core.data import Note, Transaction
 
 from ..accounts import accounts
 from . import (DictReaderStrip, get_account_by_guess,
-               get_income_account_by_guess, replace_flag)
+               get_income_account_by_guess, replace_flag,
+               map_pn, map_tag, map_meta, map_link,
+               create_simple_posting_with_meta)
 from .base import Base
 from .deduplicate import Deduplicate
 
 AccountAssetUnknown = 'Assets:Unknown'
-Account余利宝 = accounts['余利宝'] if '余利宝' in accounts else 'Assets:Bank:MyBank'
+Account余额宝 = accounts['余额宝'] if '余额宝' in accounts else 'Assets:Bank:MyBank'
 Account余额 = accounts['支付宝余额'] if '支付宝余额' in accounts else 'Assets:Balance:Alipay'
 
 class AlipayProve(Base):
@@ -52,30 +54,31 @@ class AlipayProve(Base):
             print("Importing {} at {}".format(row['商品说明'], row['交易时间']))
             meta = {}
             time = dateparser.parse(row['交易时间'])
-            meta['alipay_trade_no'] = row['交易订单号']
-            meta['trade_time'] = row['交易时间']
-            meta['timestamp'] = str(time.timestamp()).replace('.0', '')
+            #  meta['alipay_trade_no'] = row['交易订单号']
+            meta['payTime'] = row['交易时间']
+            #  meta['timestamp'] = str(time.timestamp()).replace('.0', '')
             account = get_account_by_guess(row['交易对方'], row['商品说明'], time)
             flag = "*"
             amount_string = row['金额']
             amount = float(amount_string)
 
-            if row['商家订单号'] != '/':
-                meta['shop_trade_no'] = row['商家订单号']
+            #  if row['商家订单号'] != '/':
+            #      meta['shop_trade_no'] = row['商家订单号']
 
             meta = data.new_metadata(
                 'beancount/core/testing.beancount',
                 12345,
                 meta
             )
+            p, n = map_pn(row['交易对方'], row['商品说明'])
             entry = Transaction(
                 meta,
                 date(time.year, time.month, time.day),
                 '*',
-                row['交易对方'],
-                row['商品说明'],
-                data.EMPTY_SET,
-                data.EMPTY_SET, []
+                p,
+                n,
+                map_tag(row['交易对方'], row['商品说明'], row['商家订单号']),
+                map_link(row['交易对方'], row['商品说明'], row['商家订单号']), []
             )
 
             status = row['交易状态']
@@ -89,8 +92,8 @@ class AlipayProve(Base):
                 if status in ['交易成功', '支付成功', '代付成功', '亲情卡付款成功', '等待确认收货', '等待对方发货', '交易关闭', '充值成功']:
                     data.create_simple_posting(
                         entry, trade_account, '-' + amount_string, 'CNY')
-                    data.create_simple_posting(
-                        entry, account, None, None)
+                    create_simple_posting_with_meta(
+                        entry, account, None, None, map_meta(row['交易对方'], row['商品说明']))
                 else:
                     print(status)
                     exit(0)
@@ -119,14 +122,24 @@ class AlipayProve(Base):
                         ), '-' + amount_string, 'CNY')
                     data.create_simple_posting(
                         entry, account, None, None)
-                elif '转入到余利宝' in row['商品说明'] and status == '交易成功':
+                elif '转入到余额宝' in row['商品说明'] and status == '交易成功':
                     data.create_simple_posting(
-                        entry, Account余利宝, amount_string, 'CNY')
+                        entry, Account余额宝, amount_string, 'CNY')
                     data.create_simple_posting(
                         entry, account, None, None)
-                elif '余利宝-转出到银行卡' in row['商品说明'] and status == '转出成功':
+                elif '余额宝-转出到银行卡' in row['商品说明'] and status == '交易成功':
                     data.create_simple_posting(
-                        entry, Account余利宝, '-' + amount_string, 'CNY')
+                        entry, Account余额宝, '-' + amount_string, 'CNY')
+                    data.create_simple_posting(
+                        entry, trade_account, None, None)
+                elif '余额宝-转出到余额' in row['商品说明'] and status == '交易成功':
+                    data.create_simple_posting(
+                        entry, Account余额宝, '-' + amount_string, 'CNY')
+                    data.create_simple_posting(
+                        entry, trade_account, None, None)
+                elif '提现-实时提现' in row['商品说明'] and status == '交易成功':
+                    data.create_simple_posting(
+                        entry, Account余额, '-' + amount_string, 'CNY')
                     data.create_simple_posting(
                         entry, account, None, None)
                 elif (
@@ -169,4 +182,4 @@ class AlipayProve(Base):
                 transactions.append(entry)
 
         self.deduplicate.apply_beans()
-        return transactions
+        return list(reversed(transactions))

@@ -5,16 +5,17 @@ from datetime import date
 from beancount import loader
 from beancount.core import data
 from beancount.parser import parser, printer
+from modules.imports import my_print_entries
 
 from modules.imports.alipay import Alipay
-#from modules.imports.ccb_debit import CCBDebit
-from modules.imports.citic_credit import CITICCredit
-from modules.imports.cmb_credit import CMBCredit
-from modules.imports.cmbc_credit import CMBCCredit
-from modules.imports.icbc_credit import ICBCCredit
-from modules.imports.icbc_debit import ICBCDebit
+# from modules.imports.ccb_debit import CCBDebit
+#  from modules.imports.citic_credit import CITICCredit
+#  from modules.imports.cmb_credit import CMBCredit
+#  from modules.imports.cmbc_credit import CMBCCredit
+#  from modules.imports.icbc_credit import ICBCCredit
+#  from modules.imports.icbc_debit import ICBCDebit
 from modules.imports.wechat import WeChat
-from modules.imports.yuebao import YuEBao
+#  from modules.imports.yuebao import YuEBao
 from modules.imports.alipay_prove import AlipayProve
 
 parser = argparse.ArgumentParser("import")
@@ -26,8 +27,8 @@ args = parser.parse_args()
 
 entries, errors, option_map = loader.load_file(args.entry)
 
-importers = [Alipay, AlipayProve, WeChat, CITICCredit, CMBCCredit,
-             CMBCredit, YuEBao, ICBCCredit, ICBCDebit]#, CCBDebit]
+importers = [Alipay, AlipayProve, WeChat]# , CITICCredit, CMBCCredit,
+             # CMBCredit, YuEBao, ICBCCredit, ICBCDebit]#, CCBDebit]
 instance = None
 for importer in importers:
     try:
@@ -47,7 +48,7 @@ new_entries = instance.parse()
 
 
 with open(args.out, 'w', encoding='utf-8') as f:
-    printer.print_entries(new_entries, file=f)
+    my_print_entries(new_entries, file=f, prefix='    ')
 
 print('Outputed to ' + args.out)
 exit(0)

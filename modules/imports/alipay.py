@@ -50,9 +50,9 @@ class Alipay(Base):
             print("Importing {} at {}".format(row['商品名称'], time))
             meta = {}
             time = dateparser.parse(time)
-            meta['alipay_trade_no'] = row['交易号']
-            meta['trade_time'] = str(time)
-            meta['timestamp'] = str(time.timestamp()).replace('.0', '')
+            #  meta['alipay_trade_no'] = row['交易号']
+            meta['payTime'] = str(time)
+            #  meta['timestamp'] = str(time.timestamp()).replace('.0', '')
             account = get_account_by_guess(row['交易对方'], row['商品名称'], time)
             flag = "*"
             amount = float(row['金额（元）'])
@@ -62,8 +62,8 @@ class Alipay(Base):
             if row['备注'] != '':
                 meta['note'] = row['备注']
 
-            if row['商家订单号'] != '':
-                meta['shop_trade_no'] = row['商家订单号']
+            #  if row['商家订单号'] != '':
+                #  meta['shop_trade_no'] = row['商家订单号']
 
             meta = data.new_metadata(
                 'beancount/core/testing.beancount',
