@@ -33,7 +33,7 @@ def my_print_entries(entries, dcontext=None, render_weights=False, file=None, pr
 
         if '后勤服务有限公司' in entry.payee and entry.narration == '直饮水':
             output = water
-        elif entry.payee == '余额宝' and entry.narration == '收益':
+        elif entry.payee == '余额宝' and '收益发放' in entry.narration:
             output = yuebao
         else:
             output = output_d
